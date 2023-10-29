@@ -12,26 +12,26 @@ logger = logging.getLogger('__main__')
 # Private module class.
 class _Wrapper:
 
-    node_dir = [x if x != '' else os.path.sep for x in NODE_DIR.split(os.path.sep)]
-    require_dir = "'{}'".format("', '".join(node_dir))
+    module_path = f"'{NODE_DIR}/index.js'"
+    node_args = ['node', '--input-type=module', '-e']
 
-    init_script = "var gplay = require(path.join({}));"
+    init_script = "import gplay from {};"
     api_script = (
-        "var gplay = require(path.join({})){};"
+        "import gplay from {};"
         "gplay.{}({{{}}})"
         ".then(JSON.stringify).then(console.log).catch(console.log);"
     )
     var_script = (
-        "var gplay = require(path.join({})){};"
+        "import gplay from {};"
         "let x = gplay.{};"
         "console.log(JSON.stringify(x));"
     )
 
-    def __init__(self, memoization=False):
-        self.memoization = '.memoized()' if memoization else ''
+    def __init__(self):
+        pass
 
     def check_modules(self):
-        args = ['node', '-e', self.init_script.format(self.require_dir)]
+        args = node_args + [self.init_script.format(self.module_path)]
         try:
             subprocess.run(args, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
@@ -52,17 +52,17 @@ class _Wrapper:
     def _execute_api(self, fn_name, keys, **kwargs):
         cmd = self._get_args(keys, **kwargs)
         script = self.api_script.format(
-            self.require_dir, self.memoization, fn_name, cmd)
+            self.module_path, fn_name, cmd)
         return self._execute(script)
 
     def _execute_var(self, var_name):
         script = self.var_script.format(
-            self.require_dir, self.memoization, var_name)
+            self.module_path, var_name)
         return self._execute(script)
 
     def _execute(self, script):
         logger.debug('Executing script: {}'.format(script))
-        args = ['node', '-e', script]
+        args = self.node_args + [script]
         try:
             process = subprocess.run(args, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
